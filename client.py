@@ -12,7 +12,7 @@ image = cv2.resize(image, (1280, 720))
 
 host = socket.gethostname()
 # host = "192.168.8.2"
-port = 10008
+port = 10009
 
 c = CustomSocket(host, port)
 c.clientConnect()
