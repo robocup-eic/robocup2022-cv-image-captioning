@@ -74,50 +74,48 @@ def describe_all(crop, min_h=100, resource_name="meen-test", Ocp_key='d579e048b3
     return tags, captions
 
 
-def get_age_gender(crop, part="head"):
-    print(f"\nAnalysing age and gender from {part}....\n")
+def get_age_gender(crop):
+    print(f"\nAnalysing age and gender....\n")
 
     output_indexes = np.array([i for i in range(0, 101)])
 
-    if part in crop:
-        frame = crop[part]
+    if "head" in crop:
+        frame = crop["head"]
         img = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
         # detect face
         gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         faces = np.array(haar_detector.detectMultiScale(gray, 1.3, 5))
-
         if faces.size != 0:
             for face in faces:
                 x, y, w, h = face
                 detected_face = img[int(y):int(y + h), int(x):int(x + w)]
+                break
+            else:
+                detected_face = crop["head"]
 
-                # age model is a regular vgg and it expects (224, 224, 3) shape input
-
-                detected_face = cv2.resize(detected_face, (224, 224))
-                img_blob = cv2.dnn.blobFromImage(detected_face)  # caffe model expects (1, 3, 224, 224) shape input
-                # ---------------------------
-                age_model.setInput(img_blob)
-                age_dist = age_model.forward()[0]
-                apparent_predictions = round(np.sum(age_dist * output_indexes))
-                print("Apparent age: ", apparent_predictions)
-                # ---------------------------
-                gender_model.setInput(img_blob)
-                gender_class = gender_model.forward()[0]
-                gender = 'Female' if np.argmax(gender_class) == 0 else 'Male'
-                print("Gender: ", gender)
-
-                return apparent_predictions, gender
-
-        elif part == "whole":
-            print("Can't detect face.")
-            return 0, ""
         else:
-            print("Error")
-            return get_age_gender(crop, "whole")
+            detected_face = crop["head"]
 
+        # age model is a regular vgg and it expects (224, 224, 3) shape input
+
+        detected_face = cv2.resize(detected_face, (224, 224))
+        img_blob = cv2.dnn.blobFromImage(detected_face)  # caffe model expects (1, 3, 224, 224) shape input
+        # ---------------------------
+        age_model.setInput(img_blob)
+        age_dist = age_model.forward()[0]
+        apparent_predictions = round(np.sum(age_dist * output_indexes))
+        print("Apparent age: ", apparent_predictions)
+        # ---------------------------
+        gender_model.setInput(img_blob)
+        gender_class = gender_model.forward()[0]
+        gender = 'Female' if np.argmax(gender_class) == 0 else 'Male'
+        print("Gender: ", gender)
+
+        return apparent_predictions, gender
     else:
-        return get_age_gender(crop, "whole")
+        print("Can't detec your face.")
+        return 0, ""
 
 
 def show_all(p):
@@ -131,41 +129,32 @@ def show_all(p):
 def paraphrase(gender="", age=0, captions=None, tags=None):
     text = ""
     gen = ""
+    pro = ""
 
     if gender:
-        gen = "man" if gender == "Male" else "woman"
-        text += f"You are a {gen}. "
-    # else:
-    #     text += f"I can't identify your gender. "
-
-    if age:
-        text += f"Your apparent age is {age} years old. "
-    # else:
-    #     text += f"I can't approximate your age. "
+        gen, pro = ("man", "He") if gender == "Male" else ("woman", "She")
+        text += f"{pro} is a {gen}. {('His', 'Her')[gender == 'Female']} apparent age is {age} years old. "
 
     if captions:
         capts = captions
-
         for capt in capts:
             # capt = 'a person posing for a picture'
             capt = capt.lower()
             if "wearing" in capt:
-                text += f"You are wearing {capt.split('wearing')[-1].lstrip()}. "
+                text += f"{pro} is wearing {capt.split('wearing')[-1].lstrip()}. "
 
             elif gender:
-                if gen in capt:
-                    text += f"I see a {gen}{capt.split(gen)[-1]}. "
-
+                if capt.startswith("a " + gen):
+                    text += f"{pro} is {capt}. "
+                elif capt.startswith("a person"):
+                    text += f"{pro} is {capt.replace('person', gen)}. "
                 elif "person" in capt:
-                    text += f"I see {capt.replace('person', gen)}. "
+                    text += f"I saw {capt.replace('person', gen)}"
                 else:
-                    text += f"I see {capt}. "
-
-            elif "person" in capt:
-                text += f"I see a person{capt.split('person')[-1]}. "
+                    text += f"I saw {capt}. "
 
             else:
-                text += f"I see {capt}. "
+                text += f"I saw {capt}. "
 
     return text
 
