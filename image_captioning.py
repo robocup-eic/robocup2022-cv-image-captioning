@@ -172,8 +172,8 @@ def paraphrase(gender="", age=0, captions=None, tags=None):
 
 def main():
     # HOST = socket.gethostname()
-    HOST = socket.gethostname()
-    PORT = 10008
+    HOST = "0.0.0.0"
+    PORT = 10009
 
     server = CustomSocket(HOST, PORT)
     server.startServer()
